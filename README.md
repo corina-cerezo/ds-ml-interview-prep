@@ -125,8 +125,9 @@ Every notebook follows a consistent structure:
 
 | # | Notebook | Status |
 |---|----------|--------|
-| 01 | Conditional probability | 🔜 Coming soon |
+| 01 | [Conditional probability](01_probability_statistics/01_conditional_probability.ipynb) | ✅ Complete |
 | 02 | Expectation & Variance | 🔜 Coming soon |
+| 03 | Key distributions | 🔜 Coming soon |
 | ... | ... | ... |
 
 ---
