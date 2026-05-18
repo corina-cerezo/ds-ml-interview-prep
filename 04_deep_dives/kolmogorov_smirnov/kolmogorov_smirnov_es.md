@@ -33,13 +33,13 @@ La FDE es **continua por la derecha**, no continua en sentido estricto. La razó
 
 > **Ilustración 1:** muestra pequeña con su FDE escalonada, con la posibilidad de ver cómo cambia al aumentar $n$ y cómo, en muestras con valores repetidos, aparecen saltos de tamaño $k/n$.
 >
+> *¡Da clic a la imagen para ir a la ilustración interactiva! Observa cómo cuando $n$ crece la FDE converge a la distribución teórica.*
 <p align="center">
   <a href="https://htmlpreview.github.io/?https://github.com/corina-cerezo/ds-ml-interview-prep/blob/main/04_deep_dives/kolmogorov_smirnov/interactive/01_empirical_cdf_es.html">
     <img src="https://raw.githubusercontent.com/corina-cerezo/ds-ml-interview-prep/main/04_deep_dives/kolmogorov_smirnov/images/01_empirical_cdf_es.png" alt="FDE escalonada" width="480">
   </a>
 </p>
->
-> *¡Da clic a la imagen para ir a la ilustración interactiva! Observa cómo cuando $n$ crece la FDE converge a la distribución teórica.*
+
 
 
 ### 1.1 Propiedades clave de la FDE
@@ -121,13 +121,13 @@ $$H_0: F = F_0 \quad \text{vs} \quad H_1: F \neq F_0$$
 
 > **Ilustración 2:** FDE y FDA teórica superpuestas, con la barra vertical que representa $D_n$ resaltada. Permite ver cómo cambia $D_n$ al modificar la muestra.
 >
+> *¡Da clic a la imagen para ir a la ilustración interactiva! Observa cómo $D_n$ siempre marca la mayor diferencia, a veces queda por encima y a veces por debajo de la distribución teórica.*
 <p align="center">
   <a href="https://htmlpreview.github.io/?https://github.com/corina-cerezo/ds-ml-interview-prep/blob/main/04_deep_dives/kolmogorov_smirnov/interactive/02_ks_statistic_es.html">
     <img src="https://raw.githubusercontent.com/corina-cerezo/ds-ml-interview-prep/main/04_deep_dives/kolmogorov_smirnov/images/02_ks_statistic_es.png" alt="Estadístico de Kolmogorov" width="480">
   </a>
 </p>
->
-> *¡Da clic a la imagen para ir a la ilustración interactiva! Observa cómo $D_n$ siempre marca la mayor diferencia, a veces queda por encima y a veces por debajo de la distribución teórica.*
+
 
 ### ¿Por qué el supremo?
 
@@ -166,13 +166,13 @@ La convergencia casi segura es más fuerte que la convergencia en probabilidad. 
 
 > **Ilustración 3:** se muestra una sucesión de FDEs para tamaños crecientes de muestra y cómo el peor error $D_n$ disminuye conforme $n$ crece.
 >
+> *¡Da clic a la imagen para ir a la ilustración interactiva! Observa cómo cuando $n$ crece $D_n$ se hace más pequeño.*
 <p align="center">
   <a href="https://htmlpreview.github.io/?https://github.com/corina-cerezo/ds-ml-interview-prep/blob/main/04_deep_dives/kolmogorov_smirnov/interactive/03_glivenko_cantelli_es.html">
     <img src="https://raw.githubusercontent.com/corina-cerezo/ds-ml-interview-prep/main/04_deep_dives/kolmogorov_smirnov/images/03_glivenko_cantelli_es.png" alt="Convergencia de Glivenko-Cantelli" width="480">
   </a>
 </p>
->
-> *¡Da clic a la imagen para ir a la ilustración interactiva! Observa cómo cuando $n$ crece $D_n$ se hace más pequeño.*
+
 
 ### Por qué importa para el KS
 
@@ -221,13 +221,13 @@ La intuición geométrica del resultado es la siguiente: la función $F$ "endere
 
 > **Ilustración 4:** distribución original $X \sim F$ y su transformación $F(X)$. Permite seleccionar varias distribuciones (normal, exponencial, beta) y observar cómo, sin importar la forma original, las alturas siempre se distribuyen uniformemente.
 >
+> *¡Da clic a la imagen para ir a la ilustración interactiva! Observa cómo sin importar la distribución original, las alturas se distribuyen uniformemente.*
 <p align="center">
   <a href="https://htmlpreview.github.io/?https://github.com/corina-cerezo/ds-ml-interview-prep/blob/main/04_deep_dives/kolmogorov_smirnov/interactive/04_probability_integral_transform_es.html">
     <img src="https://raw.githubusercontent.com/corina-cerezo/ds-ml-interview-prep/main/04_deep_dives/kolmogorov_smirnov/images/04_probability_integral_transform_es.png" alt="Transformación integral de probabilidad" width="480">
   </a>
 </p>
->
-> *¡Da clic a la imagen para ir a la ilustración interactiva! Observa cómo sin importar la distribución original, las alturas se distribuyen uniformemente.*
+
 
 ### Demostración del teorema
 
@@ -274,13 +274,13 @@ La serie de $K$ converge muy rápidamente (los términos decaen como gaussianas)
 
 > **Ilustración 5:** histograma simulado de $\sqrt{n}\,D_n$ bajo $H_0$ para distintos valores de $n$, superpuesto con la densidad teórica de $K$. Permite ver cómo la distribución empírica converge a la teórica al crecer $n$.
 >
+> *¡Da clic a la imagen para ir a la ilustración interactiva! Observa cómo al crecer $n$, el histograma simulado se acerca a la densidad teórica de $K$.*
 <p align="center">
   <a href="https://htmlpreview.github.io/?https://github.com/corina-cerezo/ds-ml-interview-prep/blob/main/04_deep_dives/kolmogorov_smirnov/interactive/05_kolmogorov_distribution_es.html">
     <img src="https://raw.githubusercontent.com/corina-cerezo/ds-ml-interview-prep/main/04_deep_dives/kolmogorov_smirnov/images/05_kolmogorov_distribution_es.png" alt="Distribución de Kolmogorov" width="480">
   </a>
 </p>
->
-> *¡Da clic a la imagen para ir a la ilustración interactiva! Observa cómo al crecer $n$, el histograma simulado se acerca a la densidad teórica de $K$.*
+
 
 ### Una conexión sorprendente: el puente browniano 
 
@@ -306,13 +306,13 @@ Las hipótesis son $H_0: F = G$ (sin especificar cuál) vs $H_1: F \neq G$.
 
 > **Ilustración 6:** dos FDEs superpuestas con la máxima diferencia resaltada. Permite comparar dos muestras de distintos tamaños.
 >
+> *¡Da clic a la imagen para ir a la ilustración interactiva! Observa cómo $D_{n,m}$ marca la mayor separación vertical entre las dos FDEs.*
 <p align="center">
   <a href="https://htmlpreview.github.io/?https://github.com/corina-cerezo/ds-ml-interview-prep/blob/main/04_deep_dives/kolmogorov_smirnov/interactive/06_two_samples_es.html">
     <img src="https://raw.githubusercontent.com/corina-cerezo/ds-ml-interview-prep/main/04_deep_dives/kolmogorov_smirnov/images/06_two_samples_es.png" alt="KS de dos muestras" width="480">
   </a>
 </p>
->
-> *¡Da clic a la imagen para ir a la ilustración interactiva! Observa cómo $D_{n,m}$ marca la mayor separación vertical entre las dos FDEs.*
+
 
 
 La teoría es análoga al caso de una muestra, con una diferencia importante: el escalamiento.
