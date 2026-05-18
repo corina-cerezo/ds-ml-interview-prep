@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Construcción de la FDE — Ilustración 1</title>
+<style>
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f5f1;
+  --text-primary: #2c2c2a;
+  --text-secondary: #5f5e5a;
+  --border-tertiary: rgba(0, 0, 0, 0.15);
+  --color-empirical: #534AB7;
+  --color-theoretical: #185FA5;
+  --color-points: #5F5E5A;
+  --axis-color: #5F5E5A;
+  --grid-color: rgba(0, 0, 0, 0.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #262626;
+    --text-primary: #e8e8e8;
+    --text-secondary: #a8a8a8;
+    --border-tertiary: rgba(255, 255, 255, 0.15);
+    --axis-color: #a8a8a8;
+    --grid-color: rgba(255, 255, 255, 0.08);
+  }
+  body { background: #111; }
+}
+body {
+  margin: 0;
+  padding: 2rem 1rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  line-height: 1.5;
+}
+.widget-container { max-width: 720px; margin: 0 auto; }
+h3 { font-size: 18px; font-weight: 500; margin: 0 0 4px 0; }
+.subtitle { font-size: 13px; color: var(--text-secondary); margin: 0 0 1.5rem 0; }
+.controls-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px;
+  margin-bottom: 1.5rem; align-items: center;
+}
+.control-group { display: flex; flex-direction: column; gap: 4px; }
+.control-label { font-size: 12px; color: var(--text-secondary); }
+.control-row {
+  display: flex; gap: 12px; grid-column: 1 / -1;
+  flex-wrap: wrap; align-items: center;
+}
+select, button {
+  font-size: 13px; padding: 6px 10px;
+  border: 0.5px solid var(--border-tertiary); border-radius: 6px;
+  background: var(--bg-primary); color: var(--text-primary);
+  cursor: pointer; font-family: inherit;
+}
+button:hover { background: var(--bg-secondary); }
+button:active { transform: scale(0.98); }
+input[type="range"] { width: 100%; accent-color: var(--color-empirical); }
+input[type="checkbox"] { accent-color: var(--color-empirical); }
+.checkbox-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--text-secondary); cursor: pointer;
+}
+.legend {
+  display: flex; gap: 16px; margin-bottom: 8px;
+  font-size: 12px; color: var(--text-secondary); flex-wrap: wrap;
+}
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-swatch-line { width: 16px; height: 3px; border-radius: 2px; }
+.legend-swatch-dot { width: 8px; height: 8px; border-radius: 50%; }
+.chart-container {
+  position: relative; width: 100%; height: 360px;
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border-tertiary); border-radius: 8px;
+}
+canvas { display: block; width: 100%; height: 100%; }
+.metrics-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px; margin-top: 1rem;
+}
+.metric-card {
+  background: var(--bg-secondary); border-radius: 8px; padding: 10px 14px;
+}
+.metric-label { font-size: 12px; color: var(--text-secondary); }
+.metric-value { font-size: 20px; font-weight: 500; color: var(--text-primary); }
+.value-display { font-weight: 500; color: var(--text-primary); }
+</style>
+</head>
+<body>
+<div class="widget-container">
+  <h3>Construcción de la función de distribución empírica</h3>
+  <p class="subtitle">F<sub>n</sub>(x) a partir de una muestra iid. Modifica el tamaño n o cambia la distribución verdadera para ver cómo la FDE se aproxima a F. Para n ≤ 100, los saltos se muestran con marcadores rigurosos: punto sólido (●) donde la función toma el valor, círculo abierto (○) donde es el límite por la izquierda.</p>
+
+  <div class="controls-grid">
+    <div class="control-group">
+      <label class="control-label" for="distSelect">Distribución verdadera F</label>
+      <select id="distSelect">
+        <option value="normal">Normal(0, 1)</option>
+        <option value="exp">Exponencial(1)</option>
+        <option value="uniform">Uniforme(0, 1)</option>
+        <option value="bimodal">Bimodal</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label class="control-label" for="nSlider">Tamaño de muestra n = <span id="nOut" class="value-display">15</span></label>
+      <input type="range" id="nSlider" min="5" max="500" value="15" step="1" />
+    </div>
+    <div class="control-row">
+      <button id="resampleBtn">↻ Re-muestrear</button>
+      <label class="checkbox-label">
+        <input type="checkbox" id="showTheoretical" checked /> Mostrar F verdadera
+      </label>
+      <label class="checkbox-label">
+        <input type="checkbox" id="showPoints" checked /> Mostrar observaciones
+      </label>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span class="legend-item"><span class="legend-swatch-line" style="background: #534AB7;"></span>FDE empírica F<sub>n</sub>(x)</span>
+    <span class="legend-item"><span class="legend-swatch-line" style="background: #185FA5;"></span>F verdadera</span>
+    <span class="legend-item"><span class="legend-swatch-dot" style="background: #5F5E5A;"></span>Observaciones X<sub>i</sub></span>
+  </div>
+
+  <div class="chart-container">
+    <canvas id="fdeCanvas" role="img" aria-label="Función de distribución empírica con marcadores rigurosos de discontinuidad cuando n es pequeño.">FDE con marcadores de continuidad por la derecha.</canvas>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-label">Tamaño de muestra</div>
+      <div class="metric-value" id="statN">15</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Valores únicos</div>
+      <div class="metric-value" id="statUnique">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Mayor salto observado</div>
+      <div class="metric-value" id="statMaxJump">—</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const canvas = document.getElementById('fdeCanvas');
+  const ctx = canvas.getContext('2d');
+  const distSelect = document.getElementById('distSelect');
+  const nSlider = document.getElementById('nSlider');
+  const nOut = document.getElementById('nOut');
+  const resampleBtn = document.getElementById('resampleBtn');
+  const showTheoretical = document.getElementById('showTheoretical');
+  const showPoints = document.getElementById('showPoints');
+  const statN = document.getElementById('statN');
+  const statUnique = document.getElementById('statUnique');
+  const statMaxJump = document.getElementById('statMaxJump');
+
+  const COLOR_EMPIRICAL = '#534AB7';
+  const COLOR_THEORETICAL = '#185FA5';
+  const COLOR_POINTS = '#5F5E5A';
+  const MARKER_THRESHOLD = 100;
+
+  let samples = [];
+
+  function isDark() {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  function axisColor() { return isDark() ? '#a8a8a8' : '#5F5E5A'; }
+  function gridColor() { return isDark() ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'; }
+  function textColor() { return isDark() ? '#e8e8e8' : '#2c2c2a'; }
+  function bgColor() { return isDark() ? '#1a1a1a' : '#ffffff'; }
+
+  function sampleNormal() {
+    const u1 = Math.random(), u2 = Math.random();
+    return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  }
+  function sampleExp() { return -Math.log(Math.random()); }
+  function sampleUniform() { return Math.random(); }
+  function sampleBimodal() {
+    return Math.random() < 0.5 ? sampleNormal() * 0.6 - 2 : sampleNormal() * 0.6 + 2;
+  }
+
+  function normalCDF(x) {
+    const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+    const sign = x < 0 ? -1 : 1;
+    const az = Math.abs(x) / Math.sqrt(2);
+    const t = 1.0 / (1.0 + p * az);
+    const y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t * Math.exp(-az*az);
+    return 0.5 * (1.0 + sign * y);
+  }
+  function expCDF(x) { return x < 0 ? 0 : 1 - Math.exp(-x); }
+  function unifCDF(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
+  function bimodalCDF(x) { return 0.5 * normalCDF((x + 2) / 0.6) + 0.5 * normalCDF((x - 2) / 0.6); }
+
+  function getConfig() {
+    const d = distSelect.value;
+    if (d === 'normal') return { sampler: sampleNormal, cdf: normalCDF, range: [-3.5, 3.5] };
+    if (d === 'exp') return { sampler: sampleExp, cdf: expCDF, range: [0, 6] };
+    if (d === 'uniform') return { sampler: sampleUniform, cdf: unifCDF, range: [-0.1, 1.1] };
+    if (d === 'bimodal') return { sampler: sampleBimodal, cdf: bimodalCDF, range: [-5, 5] };
+  }
+
+  function resample() {
+    const n = parseInt(nSlider.value);
+    const cfg = getConfig();
+    samples = [];
+    for (let i = 0; i < n; i++) samples.push(cfg.sampler());
+    samples.sort((a, b) => a - b);
+    updateStats();
+    draw();
+  }
+
+  function updateStats() {
+    statN.textContent = samples.length;
+    const uniqueVals = new Set(samples.map(v => v.toFixed(6))).size;
+    statUnique.textContent = uniqueVals;
+    const counts = {};
+    for (const v of samples) {
+      const key = v.toFixed(6);
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    const maxCount = Math.max(...Object.values(counts));
+    statMaxJump.textContent = maxCount + '/' + samples.length;
+  }
+
+  function drawFDE(samples, ml, plotW, x2px, y2py, showMarkers) {
+    if (samples.length === 0) return;
+    const n = samples.length;
+    const counts = {};
+    for (const v of samples) {
+      const key = v.toFixed(10);
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    const uniqueSorted = [...new Set(samples)].sort((a, b) => a - b);
+
+    ctx.strokeStyle = COLOR_EMPIRICAL;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'butt';
+
+    if (showMarkers) {
+      const segments = [];
+      segments.push({ x1: ml, x2: x2px(uniqueSorted[0]), y: 0 });
+      let cumCount = 0;
+      for (let i = 0; i < uniqueSorted.length; i++) {
+        const v = uniqueSorted[i];
+        const key = v.toFixed(10);
+        const k = counts[key];
+        cumCount += k;
+        const newY = cumCount / n;
+        const px = x2px(v);
+        const nextPx = (i < uniqueSorted.length - 1) ? x2px(uniqueSorted[i + 1]) : (ml + plotW);
+        segments.push({ x1: px, x2: nextPx, y: newY });
+      }
+
+      ctx.beginPath();
+      for (const seg of segments) {
+        ctx.moveTo(seg.x1, y2py(seg.y));
+        ctx.lineTo(seg.x2, y2py(seg.y));
+      }
+      ctx.stroke();
+
+      cumCount = 0;
+      let prevYVal = 0;
+      for (const v of uniqueSorted) {
+        const key = v.toFixed(10);
+        const k = counts[key];
+        cumCount += k;
+        const newY = cumCount / n;
+        const px = x2px(v);
+
+        if (px >= ml && px <= ml + plotW) {
+          ctx.fillStyle = bgColor();
+          ctx.beginPath();
+          ctx.arc(px, y2py(prevYVal), 3.5, 0, 2 * Math.PI);
+          ctx.fill();
+
+          ctx.strokeStyle = COLOR_EMPIRICAL;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(px, y2py(prevYVal), 3.5, 0, 2 * Math.PI);
+          ctx.stroke();
+
+          ctx.fillStyle = COLOR_EMPIRICAL;
+          ctx.beginPath();
+          ctx.arc(px, y2py(newY), 3, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+
+        prevYVal = newY;
+      }
+    } else {
+      ctx.beginPath();
+      let prevY = 0;
+      ctx.moveTo(ml, y2py(0));
+      let cumCount = 0;
+      for (const v of uniqueSorted) {
+        const key = v.toFixed(10);
+        const k = counts[key];
+        const px = x2px(v);
+        ctx.lineTo(px, y2py(prevY));
+        cumCount += k;
+        const newY = cumCount / n;
+        ctx.lineTo(px, y2py(newY));
+        prevY = newY;
+      }
+      ctx.lineTo(ml + plotW, y2py(prevY));
+      ctx.stroke();
+    }
+  }
+
+  function draw() {
+    const cfg = getConfig();
+    const dpr = window.devicePixelRatio || 1;
+    const W = canvas.clientWidth;
+    const H = canvas.clientHeight;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    const ml = 55, mr = 20, mt = 20, mb = 55;
+    const plotW = W - ml - mr;
+    const plotH = H - mt - mb;
+    const [xmin, xmax] = cfg.range;
+
+    const x2px = x => ml + (x - xmin) / (xmax - xmin) * plotW;
+    const y2py = y => mt + (1 - y) * plotH;
+
+    ctx.strokeStyle = gridColor();
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 10; i++) {
+      const py = y2py(i / 10);
+      ctx.beginPath();
+      ctx.moveTo(ml, py);
+      ctx.lineTo(ml + plotW, py);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = textColor();
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i <= 5; i++) {
+      ctx.fillText((i / 5).toFixed(1), ml - 8, y2py(i / 5));
+    }
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for (let i = 0; i <= 6; i++) {
+      const xVal = xmin + (xmax - xmin) * i / 6;
+      ctx.fillText(xVal.toFixed(1), x2px(xVal), mt + plotH + 8);
+    }
+
+    ctx.strokeStyle = axisColor();
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(ml, mt);
+    ctx.lineTo(ml, mt + plotH);
+    ctx.lineTo(ml + plotW, mt + plotH);
+    ctx.stroke();
+
+    ctx.fillStyle = textColor();
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('x', ml + plotW / 2, H - 8);
+    ctx.save();
+    ctx.translate(14, mt + plotH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textBaseline = 'top';
+    ctx.fillText('F(x),  F_n(x)', 0, 0);
+    ctx.restore();
+
+    if (showTheoretical.checked) {
+      ctx.strokeStyle = COLOR_THEORETICAL;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i <= 200; i++) {
+        const xVal = xmin + (xmax - xmin) * i / 200;
+        const px = x2px(xVal);
+        const py = y2py(cfg.cdf(xVal));
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+
+    drawFDE(samples, ml, plotW, x2px, y2py, samples.length <= MARKER_THRESHOLD);
+
+    if (showPoints.checked && samples.length > 0) {
+      ctx.fillStyle = COLOR_POINTS;
+      ctx.globalAlpha = 0.55;
+      for (const v of samples) {
+        const px = x2px(v);
+        if (px >= ml && px <= ml + plotW) {
+          ctx.beginPath();
+          ctx.arc(px, mt + plotH + 22, 2.5, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  nSlider.addEventListener('input', () => {
+    nOut.textContent = nSlider.value;
+  });
+  nSlider.addEventListener('change', resample);
+  distSelect.addEventListener('change', resample);
+  resampleBtn.addEventListener('click', resample);
+  showTheoretical.addEventListener('change', draw);
+  showPoints.addEventListener('change', draw);
+  window.addEventListener('resize', draw);
+  
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+  }
+
+  resample();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Glivenko-Cantelli — Ilustración 3</title>
+<style>
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f5f1;
+  --text-primary: #2c2c2a;
+  --text-secondary: #5f5e5a;
+  --border-tertiary: rgba(0, 0, 0, 0.15);
+  --color-empirical: #534AB7;
+  --color-theoretical: #185FA5;
+  --color-dn: #D85A30;
+  --axis-color: #5F5E5A;
+  --grid-color: rgba(0, 0, 0, 0.06);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #262626;
+    --text-primary: #e8e8e8;
+    --text-secondary: #a8a8a8;
+    --border-tertiary: rgba(255, 255, 255, 0.15);
+    --axis-color: #a8a8a8;
+    --grid-color: rgba(255, 255, 255, 0.08);
+  }
+  body { background: #111; }
+}
+body {
+  margin: 0;
+  padding: 2rem 1rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  line-height: 1.5;
+}
+.widget-container { max-width: 720px; margin: 0 auto; }
+h3 { font-size: 18px; font-weight: 500; margin: 0 0 4px 0; }
+h4 { font-size: 14px; font-weight: 500; margin: 0 0 4px 0; color: var(--text-primary); }
+.subtitle { font-size: 13px; color: var(--text-secondary); margin: 0 0 1.5rem 0; }
+.controls-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px;
+  margin-bottom: 1.5rem; align-items: center;
+}
+.control-group { display: flex; flex-direction: column; gap: 4px; }
+.control-label { font-size: 12px; color: var(--text-secondary); }
+.control-row {
+  display: flex; gap: 8px; grid-column: 1 / -1;
+  flex-wrap: wrap; align-items: center;
+}
+select, button {
+  font-size: 13px; padding: 6px 10px;
+  border: 0.5px solid var(--border-tertiary); border-radius: 6px;
+  background: var(--bg-primary); color: var(--text-primary);
+  cursor: pointer; font-family: inherit;
+}
+button:hover { background: var(--bg-secondary); }
+button:active { transform: scale(0.98); }
+input[type="range"] { width: 100%; accent-color: var(--color-empirical); }
+.legend {
+  display: flex; gap: 16px; margin-bottom: 8px;
+  font-size: 12px; color: var(--text-secondary); flex-wrap: wrap;
+}
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-swatch-line { width: 16px; height: 3px; border-radius: 2px; }
+.legend-swatch-bar { width: 4px; height: 16px; border-radius: 2px; }
+.chart-container {
+  position: relative; width: 100%; height: 300px;
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border-tertiary); border-radius: 8px;
+}
+.chart-container.small { height: 200px; }
+canvas { display: block; width: 100%; height: 100%; }
+.section { margin-top: 1.25rem; }
+.section-subtitle { font-size: 12px; color: var(--text-secondary); margin: 0 0 8px 0; }
+.metrics-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px; margin-top: 1rem;
+}
+.metric-card {
+  background: var(--bg-secondary); border-radius: 8px; padding: 10px 14px;
+}
+.metric-label { font-size: 12px; color: var(--text-secondary); }
+.metric-value { font-size: 20px; font-weight: 500; color: var(--text-primary); }
+.value-display { font-weight: 500; color: var(--text-primary); }
+</style>
+</head>
+<body>
+<div class="widget-container">
+  <h3>Glivenko-Cantelli: convergencia uniforme</h3>
+  <p class="subtitle">Conforme n crece, la FDE empírica F<sub>n</sub> se pega a la verdadera F, y el peor error D<sub>n</sub> tiende a cero. Mueve el slider para ver cómo cambia D<sub>n</sub>, y observa la trayectoria acumulada en el gráfico inferior.</p>
+
+  <div class="controls-grid">
+    <div class="control-group">
+      <label class="control-label" for="distSelect">Distribución verdadera F</label>
+      <select id="distSelect">
+        <option value="normal">Normal(0, 1)</option>
+        <option value="exp">Exponencial(1)</option>
+        <option value="uniform">Uniforme(0, 1)</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label class="control-label" for="nSlider">Tamaño de muestra n = <span id="nOut" class="value-display">25</span></label>
+      <input type="range" id="nSlider" min="5" max="5000" value="25" step="1" />
+    </div>
+    <div class="control-row">
+      <button id="resampleBtn">↻ Re-muestrear</button>
+      <button id="clearBtn">🗑 Limpiar trayectoria</button>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span class="legend-item"><span class="legend-swatch-line" style="background: #534AB7;"></span>FDE empírica F<sub>n</sub>(x)</span>
+    <span class="legend-item"><span class="legend-swatch-line" style="background: #185FA5;"></span>F verdadera</span>
+    <span class="legend-item"><span class="legend-swatch-bar" style="background: #D85A30;"></span>Máxima diferencia D<sub>n</sub></span>
+  </div>
+
+  <div class="chart-container">
+    <canvas id="mainCanvas" role="img" aria-label="FDE empírica y FDA verdadera con la máxima diferencia D_n resaltada.">FDE vs F con D_n.</canvas>
+  </div>
+
+  <div class="section">
+    <h4>Trayectoria de D<sub>n</sub> vs n</h4>
+    <p class="section-subtitle">Cada vez que cambias n, se agrega un punto a esta gráfica. Verás cómo D<sub>n</sub> → 0 conforme n crece.</p>
+    <div class="chart-container small">
+      <canvas id="trajCanvas" role="img" aria-label="Trayectoria de D_n contra n mostrando convergencia a cero.">D_n vs n.</canvas>
+    </div>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-label">D<sub>n</sub> actual</div>
+      <div class="metric-value" id="statDn">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Cota teórica 1/√n</div>
+      <div class="metric-value" id="statBound">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Puntos en trayectoria</div>
+      <div class="metric-value" id="statTraj">0</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const mainCanvas = document.getElementById('mainCanvas');
+  const trajCanvas = document.getElementById('trajCanvas');
+  const mainCtx = mainCanvas.getContext('2d');
+  const trajCtx = trajCanvas.getContext('2d');
+  const distSelect = document.getElementById('distSelect');
+  const nSlider = document.getElementById('nSlider');
+  const nOut = document.getElementById('nOut');
+  const resampleBtn = document.getElementById('resampleBtn');
+  const clearBtn = document.getElementById('clearBtn');
+  const statDn = document.getElementById('statDn');
+  const statBound = document.getElementById('statBound');
+  const statTraj = document.getElementById('statTraj');
+
+  const COLOR_EMPIRICAL = '#534AB7';
+  const COLOR_THEORETICAL = '#185FA5';
+  const COLOR_DN = '#D85A30';
+  const MARKER_THRESHOLD = 100;
+
+  let samples = [];
+  let dnInfo = null;
+  let trajectory = [];
+
+  function isDark() {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  function axisColor() { return isDark() ? '#a8a8a8' : '#5F5E5A'; }
+  function gridColor() { return isDark() ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'; }
+  function textColor() { return isDark() ? '#e8e8e8' : '#2c2c2a'; }
+  function bgColor() { return isDark() ? '#1a1a1a' : '#ffffff'; }
+
+  function sampleNormal() {
+    const u1 = Math.random(), u2 = Math.random();
+    return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  }
+  function sampleExp() { return -Math.log(Math.random()); }
+  function sampleUniform() { return Math.random(); }
+
+  function normalCDF(x) {
+    const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+    const sign = x < 0 ? -1 : 1;
+    const az = Math.abs(x) / Math.sqrt(2);
+    const t = 1.0 / (1.0 + p * az);
+    const y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t * Math.exp(-az*az);
+    return 0.5 * (1.0 + sign * y);
+  }
+  function expCDF(x) { return x < 0 ? 0 : 1 - Math.exp(-x); }
+  function unifCDF(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
+
+  function getConfig() {
+    const d = distSelect.value;
+    if (d === 'normal') return { sampler: sampleNormal, cdf: normalCDF, range: [-3.5, 3.5] };
+    if (d === 'exp') return { sampler: sampleExp, cdf: expCDF, range: [0, 6] };
+    if (d === 'uniform') return { sampler: sampleUniform, cdf: unifCDF, range: [-0.1, 1.1] };
+  }
+
+  function resample() {
+    const n = parseInt(nSlider.value);
+    const cfg = getConfig();
+    samples = new Array(n);
+    for (let i = 0; i < n; i++) samples[i] = cfg.sampler();
+    samples.sort((a, b) => a - b);
+    computeDn();
+    trajectory.push({ n: n, Dn: dnInfo.Dn });
+    if (trajectory.length > 200) trajectory.shift();
+    statTraj.textContent = trajectory.length;
+    drawAll();
+  }
+
+  function computeDn() {
+    const cfg = getConfig();
+    const n = samples.length;
+    let maxDiff = 0;
+    let maxX = samples[0];
+    let maxFn = 0;
+    let maxF0 = 0;
+    for (let i = 0; i < n; i++) {
+      const xi = samples[i];
+      const F0val = cfg.cdf(xi);
+      const FnAfter = (i + 1) / n;
+      const FnBefore = i / n;
+      const diffAfter = Math.abs(FnAfter - F0val);
+      const diffBefore = Math.abs(FnBefore - F0val);
+      if (diffAfter > maxDiff) {
+        maxDiff = diffAfter; maxX = xi; maxFn = FnAfter; maxF0 = F0val;
+      }
+      if (diffBefore > maxDiff) {
+        maxDiff = diffBefore; maxX = xi; maxFn = FnBefore; maxF0 = F0val;
+      }
+    }
+    dnInfo = { Dn: maxDiff, x: maxX, Fn: maxFn, F0: maxF0 };
+    statDn.textContent = maxDiff.toFixed(4);
+    statBound.textContent = (1 / Math.sqrt(n)).toFixed(4);
+  }
+
+  function drawArrow(ctx, x1, y1, x2, y2, color) {
+    const headSize = 7;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'butt';
+    const dy = y2 - y1;
+    const direction = dy > 0 ? 1 : -1;
+    const lineStart = y1 + direction * headSize;
+    const lineEnd = y2 - direction * headSize;
+    ctx.beginPath();
+    ctx.moveTo(x1, lineStart);
+    ctx.lineTo(x1, lineEnd);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x1 - headSize * 0.6, y1 + direction * headSize);
+    ctx.lineTo(x1 + headSize * 0.6, y1 + direction * headSize);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - headSize * 0.6, y2 - direction * headSize);
+    ctx.lineTo(x2 + headSize * 0.6, y2 - direction * headSize);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawFDE(samples, ml, plotW, x2px, y2py, showMarkers, lineWidth) {
+    if (samples.length === 0) return;
+    const n = samples.length;
+    const counts = {};
+    for (const v of samples) {
+      const key = v.toFixed(10);
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    const uniqueSorted = [...new Set(samples)].sort((a, b) => a - b);
+
+    mainCtx.strokeStyle = COLOR_EMPIRICAL;
+    mainCtx.lineWidth = lineWidth;
+    mainCtx.lineCap = 'butt';
+
+    if (showMarkers) {
+      const segments = [];
+      segments.push({ x1: ml, x2: x2px(uniqueSorted[0]), y: 0 });
+      let cumCount = 0;
+      for (let i = 0; i < uniqueSorted.length; i++) {
+        const v = uniqueSorted[i];
+        const key = v.toFixed(10);
+        const k = counts[key];
+        cumCount += k;
+        const newY = cumCount / n;
+        const px = x2px(v);
+        const nextPx = (i < uniqueSorted.length - 1) ? x2px(uniqueSorted[i + 1]) : (ml + plotW);
+        segments.push({ x1: px, x2: nextPx, y: newY });
+      }
+
+      mainCtx.beginPath();
+      for (const seg of segments) {
+        mainCtx.moveTo(seg.x1, y2py(seg.y));
+        mainCtx.lineTo(seg.x2, y2py(seg.y));
+      }
+      mainCtx.stroke();
+
+      cumCount = 0;
+      let prevYVal = 0;
+      for (const v of uniqueSorted) {
+        const key = v.toFixed(10);
+        const k = counts[key];
+        cumCount += k;
+        const newY = cumCount / n;
+        const px = x2px(v);
+
+        if (px >= ml && px <= ml + plotW) {
+          mainCtx.fillStyle = bgColor();
+          mainCtx.beginPath();
+          mainCtx.arc(px, y2py(prevYVal), 3.5, 0, 2 * Math.PI);
+          mainCtx.fill();
+
+          mainCtx.strokeStyle = COLOR_EMPIRICAL;
+          mainCtx.lineWidth = 1.5;
+          mainCtx.beginPath();
+          mainCtx.arc(px, y2py(prevYVal), 3.5, 0, 2 * Math.PI);
+          mainCtx.stroke();
+
+          mainCtx.fillStyle = COLOR_EMPIRICAL;
+          mainCtx.beginPath();
+          mainCtx.arc(px, y2py(newY), 3, 0, 2 * Math.PI);
+          mainCtx.fill();
+        }
+
+        prevYVal = newY;
+      }
+    } else {
+      mainCtx.beginPath();
+      let prevY = 0;
+      mainCtx.moveTo(ml, y2py(0));
+      let cumCount = 0;
+      for (const v of uniqueSorted) {
+        const key = v.toFixed(10);
+        const k = counts[key];
+        const px = x2px(v);
+        mainCtx.lineTo(px, y2py(prevY));
+        cumCount += k;
+        const newY = cumCount / n;
+        mainCtx.lineTo(px, y2py(newY));
+        prevY = newY;
+      }
+      mainCtx.lineTo(ml + plotW, y2py(prevY));
+      mainCtx.stroke();
+    }
+  }
+
+  function drawMain() {
+    const cfg = getConfig();
+    const dpr = window.devicePixelRatio || 1;
+    const W = mainCanvas.clientWidth;
+    const H = mainCanvas.clientHeight;
+    mainCanvas.width = W * dpr;
+    mainCanvas.height = H * dpr;
+    mainCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    mainCtx.clearRect(0, 0, W, H);
+
+    const ml = 55, mr = 20, mt = 15, mb = 40;
+    const plotW = W - ml - mr;
+    const plotH = H - mt - mb;
+    const [xmin, xmax] = cfg.range;
+    const x2px = x => ml + (x - xmin) / (xmax - xmin) * plotW;
+    const y2py = y => mt + (1 - y) * plotH;
+
+    mainCtx.strokeStyle = gridColor();
+    mainCtx.lineWidth = 0.5;
+    for (let i = 0; i <= 10; i++) {
+      const py = y2py(i / 10);
+      mainCtx.beginPath();
+      mainCtx.moveTo(ml, py);
+      mainCtx.lineTo(ml + plotW, py);
+      mainCtx.stroke();
+    }
+
+    mainCtx.fillStyle = textColor();
+    mainCtx.font = '11px sans-serif';
+    mainCtx.textAlign = 'right';
+    mainCtx.textBaseline = 'middle';
+    for (let i = 0; i <= 5; i++) {
+      mainCtx.fillText((i / 5).toFixed(1), ml - 8, y2py(i / 5));
+    }
+    mainCtx.textAlign = 'center';
+    mainCtx.textBaseline = 'top';
+    for (let i = 0; i <= 6; i++) {
+      const xVal = xmin + (xmax - xmin) * i / 6;
+      mainCtx.fillText(xVal.toFixed(1), x2px(xVal), mt + plotH + 6);
+    }
+
+    mainCtx.strokeStyle = axisColor();
+    mainCtx.lineWidth = 1;
+    mainCtx.beginPath();
+    mainCtx.moveTo(ml, mt);
+    mainCtx.lineTo(ml, mt + plotH);
+    mainCtx.lineTo(ml + plotW, mt + plotH);
+    mainCtx.stroke();
+
+    mainCtx.fillStyle = textColor();
+    mainCtx.font = '12px sans-serif';
+    mainCtx.textAlign = 'center';
+    mainCtx.textBaseline = 'bottom';
+    mainCtx.fillText('x', ml + plotW / 2, H - 4);
+    mainCtx.save();
+    mainCtx.translate(14, mt + plotH / 2);
+    mainCtx.rotate(-Math.PI / 2);
+    mainCtx.textBaseline = 'top';
+    mainCtx.fillText('F(x),  F_n(x)', 0, 0);
+    mainCtx.restore();
+
+    mainCtx.strokeStyle = COLOR_THEORETICAL;
+    mainCtx.lineWidth = 2;
+    mainCtx.beginPath();
+    for (let i = 0; i <= 200; i++) {
+      const xVal = xmin + (xmax - xmin) * i / 200;
+      const px = x2px(xVal);
+      const py = y2py(cfg.cdf(xVal));
+      if (i === 0) mainCtx.moveTo(px, py);
+      else mainCtx.lineTo(px, py);
+    }
+    mainCtx.stroke();
+
+    const lineWidth = samples.length > 500 ? 1.2 : 2;
+    drawFDE(samples, ml, plotW, x2px, y2py, samples.length <= MARKER_THRESHOLD, lineWidth);
+
+    if (dnInfo) {
+      const px = x2px(dnInfo.x);
+      const pyFn = y2py(dnInfo.Fn);
+      const pyF0 = y2py(dnInfo.F0);
+      drawArrow(mainCtx, px, pyFn, px, pyF0, COLOR_DN);
+      mainCtx.font = '500 13px sans-serif';
+      mainCtx.textAlign = 'left';
+      mainCtx.textBaseline = 'middle';
+      const labelX = px + 12;
+      const labelY = (pyFn + pyF0) / 2;
+      const label = 'D_n = ' + dnInfo.Dn.toFixed(3);
+      const metrics = mainCtx.measureText(label);
+      const padding = 4;
+      mainCtx.fillStyle = isDark() ? 'rgba(20,20,20,0.85)' : 'rgba(255,255,255,0.9)';
+      mainCtx.fillRect(labelX - padding, labelY - 9, metrics.width + padding * 2, 18);
+      mainCtx.fillStyle = COLOR_DN;
+      mainCtx.fillText(label, labelX, labelY);
+    }
+  }
+
+  function drawTrajectory() {
+    const dpr = window.devicePixelRatio || 1;
+    const W = trajCanvas.clientWidth;
+    const H = trajCanvas.clientHeight;
+    trajCanvas.width = W * dpr;
+    trajCanvas.height = H * dpr;
+    trajCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    trajCtx.clearRect(0, 0, W, H);
+
+    const ml = 55, mr = 20, mt = 15, mb = 35;
+    const plotW = W - ml - mr;
+    const plotH = H - mt - mb;
+
+    const maxN = 5000;
+    const maxDn = 0.5;
+
+    const nToPx = nVal => ml + (Math.log10(nVal) - Math.log10(5)) / (Math.log10(maxN) - Math.log10(5)) * plotW;
+    const dnToPy = d => mt + (1 - d / maxDn) * plotH;
+
+    trajCtx.strokeStyle = gridColor();
+    trajCtx.lineWidth = 0.5;
+    for (let i = 0; i <= 5; i++) {
+      const py = mt + plotH * i / 5;
+      trajCtx.beginPath();
+      trajCtx.moveTo(ml, py);
+      trajCtx.lineTo(ml + plotW, py);
+      trajCtx.stroke();
+    }
+    const nTicks = [5, 10, 50, 100, 500, 1000, 5000];
+    for (const nv of nTicks) {
+      const px = nToPx(nv);
+      trajCtx.beginPath();
+      trajCtx.moveTo(px, mt);
+      trajCtx.lineTo(px, mt + plotH);
+      trajCtx.stroke();
+    }
+
+    trajCtx.fillStyle = textColor();
+    trajCtx.font = '11px sans-serif';
+    trajCtx.textAlign = 'right';
+    trajCtx.textBaseline = 'middle';
+    for (let i = 0; i <= 5; i++) {
+      const dnVal = maxDn * (1 - i / 5);
+      trajCtx.fillText(dnVal.toFixed(2), ml - 8, mt + plotH * i / 5);
+    }
+    trajCtx.textAlign = 'center';
+    trajCtx.textBaseline = 'top';
+    for (const nv of nTicks) {
+      trajCtx.fillText(nv.toString(), nToPx(nv), mt + plotH + 6);
+    }
+
+    trajCtx.strokeStyle = axisColor();
+    trajCtx.lineWidth = 1;
+    trajCtx.beginPath();
+    trajCtx.moveTo(ml, mt);
+    trajCtx.lineTo(ml, mt + plotH);
+    trajCtx.lineTo(ml + plotW, mt + plotH);
+    trajCtx.stroke();
+
+    trajCtx.fillStyle = textColor();
+    trajCtx.font = '12px sans-serif';
+    trajCtx.textAlign = 'center';
+    trajCtx.textBaseline = 'bottom';
+    trajCtx.fillText('n (escala logarítmica)', ml + plotW / 2, H - 4);
+    trajCtx.save();
+    trajCtx.translate(14, mt + plotH / 2);
+    trajCtx.rotate(-Math.PI / 2);
+    trajCtx.textBaseline = 'top';
+    trajCtx.fillText('D_n', 0, 0);
+    trajCtx.restore();
+
+    trajCtx.strokeStyle = isDark() ? 'rgba(168,168,168,0.5)' : 'rgba(95,94,90,0.5)';
+    trajCtx.setLineDash([4, 4]);
+    trajCtx.lineWidth = 1.5;
+    trajCtx.beginPath();
+    for (let i = 0; i <= 100; i++) {
+      const nVal = 5 * Math.pow(maxN / 5, i / 100);
+      const dnBound = 1 / Math.sqrt(nVal);
+      const px = nToPx(nVal);
+      const py = dnToPy(Math.min(dnBound, maxDn));
+      if (i === 0) trajCtx.moveTo(px, py);
+      else trajCtx.lineTo(px, py);
+    }
+    trajCtx.stroke();
+    trajCtx.setLineDash([]);
+
+    trajCtx.fillStyle = isDark() ? '#a8a8a8' : '#5F5E5A';
+    trajCtx.font = '10px sans-serif';
+    trajCtx.textAlign = 'left';
+    trajCtx.textBaseline = 'bottom';
+    const refX = nToPx(100);
+    const refY = dnToPy(1 / Math.sqrt(100));
+    trajCtx.fillText('referencia: 1/√n', refX + 4, refY - 4);
+
+    trajCtx.fillStyle = COLOR_DN;
+    for (const pt of trajectory) {
+      const px = nToPx(pt.n);
+      const py = dnToPy(Math.min(pt.Dn, maxDn));
+      trajCtx.beginPath();
+      trajCtx.arc(px, py, 3, 0, 2 * Math.PI);
+      trajCtx.fill();
+    }
+
+    if (trajectory.length > 0) {
+      const last = trajectory[trajectory.length - 1];
+      const px = nToPx(last.n);
+      const py = dnToPy(Math.min(last.Dn, maxDn));
+      trajCtx.strokeStyle = COLOR_DN;
+      trajCtx.lineWidth = 2;
+      trajCtx.beginPath();
+      trajCtx.arc(px, py, 5, 0, 2 * Math.PI);
+      trajCtx.stroke();
+    }
+  }
+
+  function drawAll() {
+    drawMain();
+    drawTrajectory();
+  }
+
+  function clearTrajectory() {
+    trajectory = [];
+    statTraj.textContent = 0;
+    drawTrajectory();
+  }
+
+  nSlider.addEventListener('input', () => {
+    nOut.textContent = nSlider.value;
+  });
+  nSlider.addEventListener('change', resample);
+  distSelect.addEventListener('change', () => {
+    clearTrajectory();
+    resample();
+  });
+  resampleBtn.addEventListener('click', resample);
+  clearBtn.addEventListener('click', clearTrajectory);
+  window.addEventListener('resize', drawAll);
+  
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', drawAll);
+  }
+
+  resample();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KS de dos muestras — Ilustración 6</title>
+<style>
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f5f1;
+  --text-primary: #2c2c2a;
+  --text-secondary: #5f5e5a;
+  --border-tertiary: rgba(0, 0, 0, 0.15);
+  --color-x: #534AB7;
+  --color-y: #0F6E56;
+  --color-dnm: #D85A30;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #262626;
+    --text-primary: #e8e8e8;
+    --text-secondary: #a8a8a8;
+    --border-tertiary: rgba(255, 255, 255, 0.15);
+  }
+  body { background: #111; }
+}
+body {
+  margin: 0;
+  padding: 2rem 1rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  line-height: 1.5;
+}
+.widget-container { max-width: 720px; margin: 0 auto; }
+h3 { font-size: 18px; font-weight: 500; margin: 0 0 4px 0; }
+.subtitle { font-size: 13px; color: var(--text-secondary); margin: 0 0 1.5rem 0; }
+.controls-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px;
+  margin-bottom: 1.5rem; align-items: center;
+}
+.control-group { display: flex; flex-direction: column; gap: 4px; }
+.control-label { font-size: 12px; color: var(--text-secondary); }
+.control-row {
+  display: flex; gap: 8px; grid-column: 1 / -1;
+  flex-wrap: wrap; align-items: center;
+}
+select, button {
+  font-size: 13px; padding: 6px 10px;
+  border: 0.5px solid var(--border-tertiary); border-radius: 6px;
+  background: var(--bg-primary); color: var(--text-primary);
+  cursor: pointer; font-family: inherit;
+}
+button:hover { background: var(--bg-secondary); }
+button:active { transform: scale(0.98); }
+input[type="range"] { width: 100%; accent-color: var(--color-x); }
+.legend {
+  display: flex; gap: 16px; margin-bottom: 8px;
+  font-size: 12px; color: var(--text-secondary); flex-wrap: wrap;
+}
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-swatch-line { width: 16px; height: 3px; border-radius: 2px; }
+.legend-swatch-bar { width: 4px; height: 16px; border-radius: 2px; }
+.chart-container {
+  position: relative; width: 100%; height: 360px;
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border-tertiary); border-radius: 8px;
+}
+canvas { display: block; width: 100%; height: 100%; }
+.metrics-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px; margin-top: 1rem;
+}
+.metric-card {
+  background: var(--bg-secondary); border-radius: 8px; padding: 10px 14px;
+}
+.metric-label { font-size: 12px; color: var(--text-secondary); }
+.metric-value { font-size: 20px; font-weight: 500; color: var(--text-primary); }
+.value-display { font-weight: 500; color: var(--text-primary); }
+</style>
+</head>
+<body>
+<div class="widget-container">
+  <h3>KS de dos muestras</h3>
+  <p class="subtitle">D<sub>n,m</sub> = sup<sub>x</sub> |F<sub>n</sub>(x) − G<sub>m</sub>(x)| mide la máxima discrepancia entre dos FDEs. Cambia los tamaños y el escenario para ver cómo D<sub>n,m</sub> se mantiene pequeño bajo H₀ (misma distribución) y crece bajo H₁ (distribuciones distintas).</p>
+
+  <div class="controls-grid">
+    <div class="control-group">
+      <label class="control-label" for="scenarioSelect">Escenario</label>
+      <select id="scenarioSelect">
+        <option value="match">Misma distribución (H₀ cierta)</option>
+        <option value="shifted">Distribuciones desplazadas (H₀ falsa)</option>
+        <option value="scaled">Distintas varianzas (H₀ falsa)</option>
+        <option value="different">Familias distintas (H₀ falsa)</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label class="control-label" for="distSelect">Distribución base</label>
+      <select id="distSelect">
+        <option value="normal">Normal</option>
+        <option value="exp">Exponencial</option>
+        <option value="uniform">Uniforme</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label class="control-label" for="nSlider">Tamaño muestra X: n = <span id="nOut" class="value-display">50</span></label>
+      <input type="range" id="nSlider" min="5" max="500" value="50" step="1" />
+    </div>
+    <div class="control-group">
+      <label class="control-label" for="mSlider">Tamaño muestra Y: m = <span id="mOut" class="value-display">50</span></label>
+      <input type="range" id="mSlider" min="5" max="500" value="50" step="1" />
+    </div>
+    <div class="control-row">
+      <button id="resampleBtn">↻ Re-muestrear ambas</button>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span class="legend-item"><span class="legend-swatch-line" style="background: #534AB7;"></span>FDE de X: F<sub>n</sub>(x)</span>
+    <span class="legend-item"><span class="legend-swatch-line" style="background: #0F6E56;"></span>FDE de Y: G<sub>m</sub>(x)</span>
+    <span class="legend-item"><span class="legend-swatch-bar" style="background: #D85A30;"></span>Máxima diferencia D<sub>n,m</sub></span>
+  </div>
+
+  <div class="chart-container">
+    <canvas id="dnmCanvas" role="img" aria-label="Dos FDEs superpuestas, en morado y teal, con la máxima diferencia entre ellas marcada con una flecha coral.">Dos FDEs con D_nm resaltado.</canvas>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-label">D<sub>n,m</sub> observado</div>
+      <div class="metric-value" id="statDnm">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">√(nm/(n+m)) · D<sub>n,m</sub></div>
+      <div class="metric-value" id="statScaled">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Ubicación del máximo</div>
+      <div class="metric-value" id="statXLoc">—</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const canvas = document.getElementById('dnmCanvas');
+  const ctx = canvas.getContext('2d');
+  const scenarioSelect = document.getElementById('scenarioSelect');
+  const distSelect = document.getElementById('distSelect');
+  const nSlider = document.getElementById('nSlider');
+  const mSlider = document.getElementById('mSlider');
+  const nOut = document.getElementById('nOut');
+  const mOut = document.getElementById('mOut');
+  const resampleBtn = document.getElementById('resampleBtn');
+  const statDnm = document.getElementById('statDnm');
+  const statScaled = document.getElementById('statScaled');
+  const statXLoc = document.getElementById('statXLoc');
+
+  const COLOR_X = '#534AB7';
+  const COLOR_Y = '#0F6E56';
+  const COLOR_DNM = '#D85A30';
+  const MARKER_THRESHOLD = 60;
+
+  let samplesX = [];
+  let samplesY = [];
+  let dnmInfo = null;
+
+  function isDark() {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  function axisColor() { return isDark() ? '#a8a8a8' : '#5F5E5A'; }
+  function gridColor() { return isDark() ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'; }
+  function textColor() { return isDark() ? '#e8e8e8' : '#2c2c2a'; }
+  function bgColor() { return isDark() ? '#1a1a1a' : '#ffffff'; }
+
+  function sampleNormal(mu, sigma) {
+    mu = mu || 0; sigma = sigma || 1;
+    const u1 = Math.random(), u2 = Math.random();
+    return mu + sigma * Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  }
+  function sampleExp(lambda) {
+    lambda = lambda || 1;
+    return -Math.log(Math.random()) / lambda;
+  }
+  function sampleUniform(a, b) {
+    a = a || 0; b = b !== undefined ? b : 1;
+    return a + Math.random() * (b - a);
+  }
+
+  function getSamplers() {
+    const d = distSelect.value;
+    const s = scenarioSelect.value;
+    if (d === 'normal') {
+      if (s === 'match') return { x: () => sampleNormal(0, 1), y: () => sampleNormal(0, 1), range: [-4, 4] };
+      if (s === 'shifted') return { x: () => sampleNormal(0, 1), y: () => sampleNormal(0.8, 1), range: [-4, 5] };
+      if (s === 'scaled') return { x: () => sampleNormal(0, 1), y: () => sampleNormal(0, 1.8), range: [-5, 5] };
+      if (s === 'different') return { x: () => sampleNormal(0, 1), y: () => sampleExp(1) - 1, range: [-4, 5] };
+    }
+    if (d === 'exp') {
+      if (s === 'match') return { x: () => sampleExp(1), y: () => sampleExp(1), range: [0, 6] };
+      if (s === 'shifted') return { x: () => sampleExp(1), y: () => sampleExp(1) + 0.7, range: [0, 7] };
+      if (s === 'scaled') return { x: () => sampleExp(1), y: () => sampleExp(0.5), range: [0, 9] };
+      if (s === 'different') return { x: () => sampleExp(1), y: () => Math.abs(sampleNormal(0, 1)), range: [0, 6] };
+    }
+    if (d === 'uniform') {
+      if (s === 'match') return { x: () => sampleUniform(0, 1), y: () => sampleUniform(0, 1), range: [-0.2, 1.2] };
+      if (s === 'shifted') return { x: () => sampleUniform(0, 1), y: () => sampleUniform(0.3, 1.3), range: [-0.2, 1.5] };
+      if (s === 'scaled') return { x: () => sampleUniform(0, 1), y: () => sampleUniform(-0.3, 1.3), range: [-0.5, 1.5] };
+      if (s === 'different') return { x: () => sampleUniform(0, 1), y: () => Math.pow(Math.random(), 0.4), range: [-0.2, 1.2] };
+    }
+  }
+
+  function resample() {
+    const n = parseInt(nSlider.value);
+    const m = parseInt(mSlider.value);
+    const cfg = getSamplers();
+    samplesX = new Array(n);
+    samplesY = new Array(m);
+    for (let i = 0; i < n; i++) samplesX[i] = cfg.x();
+    for (let i = 0; i < m; i++) samplesY[i] = cfg.y();
+    samplesX.sort((a, b) => a - b);
+    samplesY.sort((a, b) => a - b);
+    computeDnm();
+    draw();
+  }
+
+  function fdeAt(samples, x) {
+    let count = 0;
+    for (const v of samples) {
+      if (v <= x) count++;
+      else break;
+    }
+    return count / samples.length;
+  }
+
+  function computeDnm() {
+    if (samplesX.length === 0 || samplesY.length === 0) { dnmInfo = null; return; }
+    const allPoints = [...new Set([...samplesX, ...samplesY])].sort((a, b) => a - b);
+    let maxDiff = 0;
+    let maxX = allPoints[0];
+    let maxFn = 0;
+    let maxGm = 0;
+    for (const x of allPoints) {
+      const fnAfter = fdeAt(samplesX, x);
+      const gmAfter = fdeAt(samplesY, x);
+      let fnBefore = 0, gmBefore = 0;
+      for (const v of samplesX) { if (v < x) fnBefore += 1/samplesX.length; else break; }
+      for (const v of samplesY) { if (v < x) gmBefore += 1/samplesY.length; else break; }
+      const candidates = [
+        { fn: fnAfter, gm: gmAfter },
+        { fn: fnBefore, gm: gmBefore },
+        { fn: fnAfter, gm: gmBefore },
+        { fn: fnBefore, gm: gmAfter }
+      ];
+      for (const c of candidates) {
+        const d = Math.abs(c.fn - c.gm);
+        if (d > maxDiff) {
+          maxDiff = d; maxX = x; maxFn = c.fn; maxGm = c.gm;
+        }
+      }
+    }
+    const n = samplesX.length;
+    const m = samplesY.length;
+    const scaleFactor = Math.sqrt((n * m) / (n + m));
+    dnmInfo = { Dnm: maxDiff, x: maxX, Fn: maxFn, Gm: maxGm, scaled: scaleFactor * maxDiff };
+    statDnm.textContent = maxDiff.toFixed(3);
+    statScaled.textContent = (scaleFactor * maxDiff).toFixed(3);
+    statXLoc.textContent = 'x = ' + maxX.toFixed(2);
+  }
+
+  function drawArrow(ctx, x1, y1, x2, y2, color) {
+    const headSize = 7;
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'butt';
+    const dy = y2 - y1;
+    const direction = dy > 0 ? 1 : -1;
+    const lineStart = y1 + direction * headSize;
+    const lineEnd = y2 - direction * headSize;
+    ctx.beginPath();
+    ctx.moveTo(x1, lineStart);
+    ctx.lineTo(x1, lineEnd);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x1 - headSize * 0.6, y1 + direction * headSize);
+    ctx.lineTo(x1 + headSize * 0.6, y1 + direction * headSize);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(x2 - headSize * 0.6, y2 - direction * headSize);
+    ctx.lineTo(x2 + headSize * 0.6, y2 - direction * headSize);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawFDE(samples, color, ml, plotW, x2px, y2py, showMarkers) {
+    if (samples.length === 0) return;
+    const n = samples.length;
+    const counts = {};
+    for (const v of samples) {
+      const key = v.toFixed(10);
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    const uniqueSorted = [...new Set(samples)].sort((a, b) => a - b);
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'butt';
+
+    if (showMarkers) {
+      const segments = [];
+      segments.push({ x1: ml, x2: x2px(uniqueSorted[0]), y: 0 });
+      let cumCount = 0;
+      for (let i = 0; i < uniqueSorted.length; i++) {
+        const v = uniqueSorted[i];
+        const k = counts[v.toFixed(10)];
+        cumCount += k;
+        const newY = cumCount / n;
+        const px = x2px(v);
+        const nextPx = (i < uniqueSorted.length - 1) ? x2px(uniqueSorted[i + 1]) : (ml + plotW);
+        segments.push({ x1: px, x2: nextPx, y: newY });
+      }
+
+      ctx.beginPath();
+      for (const seg of segments) {
+        ctx.moveTo(seg.x1, y2py(seg.y));
+        ctx.lineTo(seg.x2, y2py(seg.y));
+      }
+      ctx.stroke();
+
+      cumCount = 0;
+      let prevYVal = 0;
+      for (const v of uniqueSorted) {
+        const k = counts[v.toFixed(10)];
+        cumCount += k;
+        const newY = cumCount / n;
+        const px = x2px(v);
+
+        if (px >= ml && px <= ml + plotW) {
+          ctx.fillStyle = bgColor();
+          ctx.beginPath();
+          ctx.arc(px, y2py(prevYVal), 3.5, 0, 2 * Math.PI);
+          ctx.fill();
+
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(px, y2py(prevYVal), 3.5, 0, 2 * Math.PI);
+          ctx.stroke();
+
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(px, y2py(newY), 3, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+        prevYVal = newY;
+      }
+    } else {
+      ctx.beginPath();
+      let prevY = 0;
+      ctx.moveTo(ml, y2py(0));
+      let cumCount = 0;
+      for (const v of uniqueSorted) {
+        const k = counts[v.toFixed(10)];
+        const px = x2px(v);
+        ctx.lineTo(px, y2py(prevY));
+        cumCount += k;
+        const newY = cumCount / n;
+        ctx.lineTo(px, y2py(newY));
+        prevY = newY;
+      }
+      ctx.lineTo(ml + plotW, y2py(prevY));
+      ctx.stroke();
+    }
+  }
+
+  function draw() {
+    const cfg = getSamplers();
+    const dpr = window.devicePixelRatio || 1;
+    const W = canvas.clientWidth;
+    const H = canvas.clientHeight;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    const ml = 55, mr = 20, mt = 20, mb = 50;
+    const plotW = W - ml - mr;
+    const plotH = H - mt - mb;
+    const [xmin, xmax] = cfg.range;
+
+    const x2px = x => ml + (x - xmin) / (xmax - xmin) * plotW;
+    const y2py = y => mt + (1 - y) * plotH;
+
+    ctx.strokeStyle = gridColor();
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 10; i++) {
+      const py = y2py(i / 10);
+      ctx.beginPath();
+      ctx.moveTo(ml, py);
+      ctx.lineTo(ml + plotW, py);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = textColor();
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i <= 5; i++) {
+      ctx.fillText((i / 5).toFixed(1), ml - 8, y2py(i / 5));
+    }
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for (let i = 0; i <= 6; i++) {
+      const xVal = xmin + (xmax - xmin) * i / 6;
+      ctx.fillText(xVal.toFixed(1), x2px(xVal), mt + plotH + 6);
+    }
+
+    ctx.strokeStyle = axisColor();
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(ml, mt);
+    ctx.lineTo(ml, mt + plotH);
+    ctx.lineTo(ml + plotW, mt + plotH);
+    ctx.stroke();
+
+    ctx.fillStyle = textColor();
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('x', ml + plotW / 2, H - 6);
+    ctx.save();
+    ctx.translate(14, mt + plotH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textBaseline = 'top';
+    ctx.fillText('F_n(x),  G_m(x)', 0, 0);
+    ctx.restore();
+
+    drawFDE(samplesX, COLOR_X, ml, plotW, x2px, y2py, samplesX.length <= MARKER_THRESHOLD);
+    drawFDE(samplesY, COLOR_Y, ml, plotW, x2px, y2py, samplesY.length <= MARKER_THRESHOLD);
+
+    if (dnmInfo) {
+      const px = x2px(dnmInfo.x);
+      const pyFn = y2py(dnmInfo.Fn);
+      const pyGm = y2py(dnmInfo.Gm);
+
+      drawArrow(ctx, px, pyFn, px, pyGm, COLOR_DNM);
+
+      ctx.font = '500 13px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      const labelX = px + 12;
+      const labelY = (pyFn + pyGm) / 2;
+      const label = 'D_{n,m} = ' + dnmInfo.Dnm.toFixed(3);
+      const metrics = ctx.measureText(label);
+      const padding = 4;
+      ctx.fillStyle = isDark() ? 'rgba(20,20,20,0.85)' : 'rgba(255,255,255,0.9)';
+      ctx.fillRect(labelX - padding, labelY - 9, metrics.width + padding * 2, 18);
+      ctx.fillStyle = COLOR_DNM;
+      ctx.fillText(label, labelX, labelY);
+    }
+  }
+
+  nSlider.addEventListener('input', () => { nOut.textContent = nSlider.value; });
+  mSlider.addEventListener('input', () => { mOut.textContent = mSlider.value; });
+  nSlider.addEventListener('change', resample);
+  mSlider.addEventListener('change', resample);
+  scenarioSelect.addEventListener('change', resample);
+  distSelect.addEventListener('change', resample);
+  resampleBtn.addEventListener('click', resample);
+  window.addEventListener('resize', draw);
+  
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+  }
+
+  resample();
+})();
+</script>
+</body>
+</html>

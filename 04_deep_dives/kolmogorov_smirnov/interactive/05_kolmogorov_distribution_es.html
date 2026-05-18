@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distribución de Kolmogorov — Ilustración 5</title>
+<style>
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f5f1;
+  --text-primary: #2c2c2a;
+  --text-secondary: #5f5e5a;
+  --border-tertiary: rgba(0, 0, 0, 0.15);
+  --color-hist: #534AB7;
+  --color-k: #D85A30;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #262626;
+    --text-primary: #e8e8e8;
+    --text-secondary: #a8a8a8;
+    --border-tertiary: rgba(255, 255, 255, 0.15);
+  }
+  body { background: #111; }
+}
+body {
+  margin: 0;
+  padding: 2rem 1rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  line-height: 1.5;
+}
+.widget-container { max-width: 720px; margin: 0 auto; }
+h3 { font-size: 18px; font-weight: 500; margin: 0 0 4px 0; }
+.subtitle { font-size: 13px; color: var(--text-secondary); margin: 0 0 1.5rem 0; }
+.controls-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px;
+  margin-bottom: 1.5rem; align-items: center;
+}
+.control-group { display: flex; flex-direction: column; gap: 4px; }
+.control-label { font-size: 12px; color: var(--text-secondary); }
+.control-action { display: flex; gap: 8px; align-items: end; }
+select, button {
+  font-size: 13px; padding: 6px 10px;
+  border: 0.5px solid var(--border-tertiary); border-radius: 6px;
+  background: var(--bg-primary); color: var(--text-primary);
+  cursor: pointer; font-family: inherit;
+}
+button:hover { background: var(--bg-secondary); }
+button:active { transform: scale(0.98); }
+input[type="range"] { width: 100%; accent-color: var(--color-hist); }
+.legend {
+  display: flex; gap: 16px; margin-bottom: 8px;
+  font-size: 12px; color: var(--text-secondary); flex-wrap: wrap;
+}
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-swatch-line { width: 16px; height: 3px; border-radius: 2px; }
+.legend-swatch-rect { width: 14px; height: 10px; border-radius: 1px; }
+.legend-swatch-dashed { width: 16px; height: 0; border-top: 2px dashed #5F5E5A; }
+.chart-container {
+  position: relative; width: 100%; height: 380px;
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border-tertiary); border-radius: 8px;
+}
+canvas { display: block; width: 100%; height: 100%; }
+.metrics-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px; margin-top: 1rem;
+}
+.metric-card {
+  background: var(--bg-secondary); border-radius: 8px; padding: 10px 14px;
+}
+.metric-label { font-size: 12px; color: var(--text-secondary); }
+.metric-value { font-size: 20px; font-weight: 500; color: var(--text-primary); }
+.metric-value.muted { color: var(--text-secondary); }
+.value-display { font-weight: 500; color: var(--text-primary); }
+</style>
+</head>
+<body>
+<div class="widget-container">
+  <h3>Convergencia a la distribución de Kolmogorov</h3>
+  <p class="subtitle">Bajo H<sub>0</sub>, el estadístico escalado √n · D<sub>n</sub> converge en distribución a la distribución de Kolmogorov K. El histograma morado se construye simulando muchas réplicas; la curva coral es la densidad teórica de K. Cambia n o F<sub>0</sub>: el histograma se ajusta a la curva sin importar la distribución.</p>
+
+  <div class="controls-grid">
+    <div class="control-group">
+      <label class="control-label" for="distSelect">Distribución F<sub>0</sub> bajo H<sub>0</sub></label>
+      <select id="distSelect">
+        <option value="normal">Normal(0, 1)</option>
+        <option value="exp">Exponencial(1)</option>
+        <option value="uniform">Uniforme(0, 1)</option>
+        <option value="beta">Beta(2, 5)</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label class="control-label" for="nSlider">Tamaño de muestra n = <span id="nOut" class="value-display">50</span></label>
+      <input type="range" id="nSlider" min="5" max="500" value="50" step="1" />
+    </div>
+    <div class="control-group">
+      <label class="control-label" for="repsSlider">Réplicas Monte Carlo = <span id="repsOut" class="value-display">2000</span></label>
+      <input type="range" id="repsSlider" min="500" max="5000" value="2000" step="500" />
+    </div>
+    <div class="control-action">
+      <button id="simulateBtn">↻ Re-simular</button>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span class="legend-item"><span class="legend-swatch-rect" style="background: rgba(83,74,183,0.55);"></span>Histograma simulado de √n · D<sub>n</sub></span>
+    <span class="legend-item"><span class="legend-swatch-line" style="background: #D85A30;"></span>Densidad teórica K</span>
+    <span class="legend-item"><span class="legend-swatch-dashed"></span>Cuantil 95% ≈ 1.358</span>
+  </div>
+
+  <div class="chart-container">
+    <canvas id="histCanvas" role="img" aria-label="Histograma del estadístico raíz de n por D_n simulado, comparado con la densidad teórica de Kolmogorov.">Histograma simulado y densidad teórica de Kolmogorov.</canvas>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-label">Media simulada</div>
+      <div class="metric-value" id="statMean">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Media teórica de K</div>
+      <div class="metric-value muted">≈ 0.868</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">% sobre cuantil 95%</div>
+      <div class="metric-value" id="statTail">—</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const canvas = document.getElementById('histCanvas');
+  const ctx = canvas.getContext('2d');
+  const distSelect = document.getElementById('distSelect');
+  const nSlider = document.getElementById('nSlider');
+  const nOut = document.getElementById('nOut');
+  const repsSlider = document.getElementById('repsSlider');
+  const repsOut = document.getElementById('repsOut');
+  const simulateBtn = document.getElementById('simulateBtn');
+  const statMean = document.getElementById('statMean');
+  const statTail = document.getElementById('statTail');
+
+  const COLOR_HIST = '#534AB7';
+  const COLOR_K = '#D85A30';
+
+  let stats = [];
+
+  function isDark() {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  function axisColor() { return isDark() ? '#a8a8a8' : '#5F5E5A'; }
+  function gridColor() { return isDark() ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'; }
+  function textColor() { return isDark() ? '#e8e8e8' : '#2c2c2a'; }
+
+  function sampleNormal() {
+    const u1 = Math.random(), u2 = Math.random();
+    return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  }
+  function sampleExp() { return -Math.log(Math.random()); }
+  function sampleUniform() { return Math.random(); }
+  function sampleGamma(shape) {
+    if (shape < 1) {
+      const u = Math.random();
+      return sampleGamma(shape + 1) * Math.pow(u, 1/shape);
+    }
+    const d = shape - 1/3;
+    const c = 1 / Math.sqrt(9 * d);
+    while (true) {
+      let x, v;
+      do {
+        x = sampleNormal();
+        v = 1 + c * x;
+      } while (v <= 0);
+      v = v * v * v;
+      const u = Math.random();
+      if (u < 1 - 0.0331 * x * x * x * x) return d * v;
+      if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
+    }
+  }
+  function sampleBeta() {
+    const g1 = sampleGamma(2);
+    const g2 = sampleGamma(5);
+    return g1 / (g1 + g2);
+  }
+
+  function normalCDF(x) {
+    const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+    const sign = x < 0 ? -1 : 1;
+    const az = Math.abs(x) / Math.sqrt(2);
+    const t = 1.0 / (1.0 + p * az);
+    const y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t * Math.exp(-az*az);
+    return 0.5 * (1.0 + sign * y);
+  }
+  function expCDF(x) { return x < 0 ? 0 : 1 - Math.exp(-x); }
+  function unifCDF(x) { return x < 0 ? 0 : x > 1 ? 1 : x; }
+  function betaCDF(x) {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    const steps = 200;
+    let sum = 0;
+    for (let i = 0; i < steps; i++) {
+      const t = (i + 0.5) / steps * x;
+      sum += 30 * t * Math.pow(1 - t, 4);
+    }
+    return sum * x / steps;
+  }
+
+  function getConfig() {
+    const d = distSelect.value;
+    if (d === 'normal') return { sampler: sampleNormal, cdf: normalCDF };
+    if (d === 'exp') return { sampler: sampleExp, cdf: expCDF };
+    if (d === 'uniform') return { sampler: sampleUniform, cdf: unifCDF };
+    if (d === 'beta') return { sampler: sampleBeta, cdf: betaCDF };
+  }
+
+  function computeDn(samples, cdfFn) {
+    samples.sort((a, b) => a - b);
+    const n = samples.length;
+    let maxDiff = 0;
+    for (let i = 0; i < n; i++) {
+      const F0val = cdfFn(samples[i]);
+      const dA = Math.abs((i + 1) / n - F0val);
+      const dB = Math.abs(i / n - F0val);
+      if (dA > maxDiff) maxDiff = dA;
+      if (dB > maxDiff) maxDiff = dB;
+    }
+    return maxDiff;
+  }
+
+  function kolmogorovPDF(x) {
+    if (x <= 0) return 0;
+    // La serie original (8x · sum (-1)^(k-1) k^2 e^(-2k^2 x^2)) sufre de cancelación
+    // catastrófica para x pequeño porque los términos alternan signos con magnitudes
+    // grandes. Para x < 1.18 se usa una representación equivalente derivada de la
+    // identidad de Jacobi para la función theta, que converge muy rápido cerca del
+    // origen y no presenta cancelación.
+    if (x < 1.18) {
+      const pi = Math.PI;
+      const x2 = x * x;
+      let total = 0;
+      for (let k = 1; k <= 20; k++) {
+        const m = 2 * k - 1;
+        const arg = (m * pi) * (m * pi) / (8 * x2);
+        if (arg > 700) break; // evitar underflow innecesario
+        total += ((m * pi) * (m * pi) / (4 * x2) - 1) * Math.exp(-arg);
+      }
+      return Math.sqrt(2 * pi) / x2 * total;
+    } else {
+      let total = 0;
+      for (let k = 1; k <= 100; k++) {
+        total += Math.pow(-1, k - 1) * k * k * Math.exp(-2 * k * k * x * x);
+      }
+      return 8 * x * total;
+    }
+  }
+
+  function simulate() {
+    const n = parseInt(nSlider.value);
+    const reps = parseInt(repsSlider.value);
+    const cfg = getConfig();
+    stats = new Array(reps);
+    const sqrtN = Math.sqrt(n);
+    for (let r = 0; r < reps; r++) {
+      const sample = new Array(n);
+      for (let i = 0; i < n; i++) sample[i] = cfg.sampler();
+      stats[r] = sqrtN * computeDn(sample, cfg.cdf);
+    }
+    updateStats();
+    draw();
+  }
+
+  function updateStats() {
+    if (stats.length === 0) return;
+    let sum = 0;
+    let tailCount = 0;
+    for (const s of stats) {
+      sum += s;
+      if (s > 1.358) tailCount++;
+    }
+    statMean.textContent = (sum / stats.length).toFixed(3);
+    statTail.textContent = ((tailCount / stats.length) * 100).toFixed(1) + '%';
+  }
+
+  function histogram(data, nbins, range) {
+    const [lo, hi] = range;
+    const bins = new Array(nbins).fill(0);
+    for (const x of data) {
+      if (x >= lo && x < hi) {
+        const idx = Math.min(nbins - 1, Math.floor((x - lo) / (hi - lo) * nbins));
+        bins[idx]++;
+      }
+    }
+    return bins;
+  }
+
+  function draw() {
+    const dpr = window.devicePixelRatio || 1;
+    const W = canvas.clientWidth;
+    const H = canvas.clientHeight;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    const ml = 55, mr = 20, mt = 20, mb = 50;
+    const plotW = W - ml - mr;
+    const plotH = H - mt - mb;
+
+    const xmin = 0, xmax = 2.5;
+    const ymax = 2.0;
+
+    const x2px = x => ml + (x - xmin) / (xmax - xmin) * plotW;
+    const y2py = y => mt + (1 - y / ymax) * plotH;
+
+    ctx.strokeStyle = gridColor();
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 4; i++) {
+      const py = mt + plotH * i / 4;
+      ctx.beginPath();
+      ctx.moveTo(ml, py);
+      ctx.lineTo(ml + plotW, py);
+      ctx.stroke();
+    }
+
+    const nbins = 50;
+    const bins = histogram(stats, nbins, [xmin, xmax]);
+    const binWidth = (xmax - xmin) / nbins;
+    const reps = stats.length;
+    const densities = bins.map(b => b / (reps * binWidth));
+
+    ctx.fillStyle = isDark() ? 'rgba(127,119,221,0.7)' : 'rgba(83,74,183,0.55)';
+    for (let i = 0; i < nbins; i++) {
+      const x0 = xmin + i * binWidth;
+      const cx0 = x2px(x0);
+      const cx1 = x2px(x0 + binWidth);
+      const h = densities[i] / ymax * plotH;
+      ctx.fillRect(cx0, mt + plotH - h, Math.max(cx1 - cx0 - 0.5, 0), h);
+    }
+
+    ctx.strokeStyle = COLOR_K;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    for (let i = 0; i <= 300; i++) {
+      const x = xmin + (xmax - xmin) * i / 300;
+      const y = kolmogorovPDF(x);
+      const px = x2px(x);
+      const py = y2py(Math.min(y, ymax));
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+
+    const quantile95 = 1.358;
+    ctx.strokeStyle = axisColor();
+    ctx.setLineDash([5, 4]);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x2px(quantile95), mt);
+    ctx.lineTo(x2px(quantile95), mt + plotH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = axisColor();
+    ctx.font = '500 10px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('95%', x2px(quantile95) + 4, mt + 4);
+
+    ctx.strokeStyle = axisColor();
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(ml, mt);
+    ctx.lineTo(ml, mt + plotH);
+    ctx.lineTo(ml + plotW, mt + plotH);
+    ctx.stroke();
+
+    ctx.fillStyle = textColor();
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i <= 4; i++) {
+      const yVal = ymax * (1 - i / 4);
+      ctx.fillText(yVal.toFixed(1), ml - 8, mt + plotH * i / 4);
+    }
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for (let i = 0; i <= 5; i++) {
+      const xVal = xmin + (xmax - xmin) * i / 5;
+      ctx.fillText(xVal.toFixed(1), x2px(xVal), mt + plotH + 6);
+    }
+
+    ctx.fillStyle = textColor();
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('valor de √n · D_n', ml + plotW / 2, H - 6);
+
+    ctx.save();
+    ctx.translate(14, mt + plotH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textBaseline = 'top';
+    ctx.fillText('densidad', 0, 0);
+    ctx.restore();
+  }
+
+  nSlider.addEventListener('input', () => {
+    nOut.textContent = nSlider.value;
+  });
+  repsSlider.addEventListener('input', () => {
+    repsOut.textContent = repsSlider.value;
+  });
+  nSlider.addEventListener('change', simulate);
+  repsSlider.addEventListener('change', simulate);
+  distSelect.addEventListener('change', simulate);
+  simulateBtn.addEventListener('click', simulate);
+  window.addEventListener('resize', draw);
+  
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+  }
+
+  simulate();
+})();
+</script>
+</body>
+</html>

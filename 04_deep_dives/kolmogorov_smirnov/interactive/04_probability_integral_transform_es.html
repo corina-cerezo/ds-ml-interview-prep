@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transformación integral de probabilidad — Ilustración 4</title>
+<style>
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f5f1;
+  --text-primary: #2c2c2a;
+  --text-secondary: #5f5e5a;
+  --border-tertiary: rgba(0, 0, 0, 0.15);
+  --color-theoretical: #185FA5;
+  --color-x: #534AB7;
+  --color-u: #3B6D11;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #262626;
+    --text-primary: #e8e8e8;
+    --text-secondary: #a8a8a8;
+    --border-tertiary: rgba(255, 255, 255, 0.15);
+  }
+  body { background: #111; }
+}
+body {
+  margin: 0;
+  padding: 2rem 1rem;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  line-height: 1.5;
+}
+.widget-container { max-width: 720px; margin: 0 auto; }
+h3 { font-size: 18px; font-weight: 500; margin: 0 0 4px 0; }
+.subtitle { font-size: 13px; color: var(--text-secondary); margin: 0 0 1.5rem 0; }
+.controls-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px;
+  margin-bottom: 1.5rem; align-items: center;
+}
+.control-group { display: flex; flex-direction: column; gap: 4px; }
+.control-label { font-size: 12px; color: var(--text-secondary); }
+.control-row {
+  display: flex; gap: 12px; grid-column: 1 / -1;
+  flex-wrap: wrap; align-items: center;
+}
+select, button {
+  font-size: 13px; padding: 6px 10px;
+  border: 0.5px solid var(--border-tertiary); border-radius: 6px;
+  background: var(--bg-primary); color: var(--text-primary);
+  cursor: pointer; font-family: inherit;
+}
+button:hover { background: var(--bg-secondary); }
+button:active { transform: scale(0.98); }
+input[type="range"] { width: 100%; accent-color: var(--color-x); }
+input[type="checkbox"] { accent-color: var(--color-x); }
+.checkbox-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--text-secondary); cursor: pointer;
+}
+.legend {
+  display: flex; gap: 16px; margin-bottom: 8px;
+  font-size: 12px; color: var(--text-secondary); flex-wrap: wrap;
+}
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-swatch-line { width: 16px; height: 3px; border-radius: 2px; }
+.legend-swatch-rect { width: 14px; height: 10px; border-radius: 1px; }
+.chart-container {
+  position: relative; width: 100%; height: 500px;
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border-tertiary); border-radius: 8px;
+}
+canvas { display: block; width: 100%; height: 100%; }
+.metrics-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px; margin-top: 1rem;
+}
+.metric-card {
+  background: var(--bg-secondary); border-radius: 8px; padding: 10px 14px;
+}
+.metric-label { font-size: 12px; color: var(--text-secondary); }
+.metric-value { font-size: 20px; font-weight: 500; color: var(--text-primary); }
+.metric-value.small { font-size: 13px; color: var(--text-secondary); }
+.value-display { font-weight: 500; color: var(--text-primary); }
+</style>
+</head>
+<body>
+<div class="widget-container">
+  <h3>Transformación integral de probabilidad</h3>
+  <p class="subtitle">Si X ~ F continua, entonces U = F(X) ~ Uniforme(0,1). El histograma morado (abajo) muestra los X<sub>i</sub>; el histograma verde (izquierda) muestra los U<sub>i</sub> = F(X<sub>i</sub>). Cambia la distribución de X: el morado cambia drásticamente, el verde siempre se mantiene plano.</p>
+
+  <div class="controls-grid">
+    <div class="control-group">
+      <label class="control-label" for="distSelect">Distribución de X</label>
+      <select id="distSelect">
+        <option value="normal">Normal(0, 1)</option>
+        <option value="exp">Exponencial(1)</option>
+        <option value="beta">Beta(2, 5)</option>
+        <option value="bimodal">Bimodal</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label class="control-label" for="nSlider">Tamaño de muestra n = <span id="nOut" class="value-display">500</span></label>
+      <input type="range" id="nSlider" min="100" max="5000" value="500" step="100" />
+    </div>
+    <div class="control-row">
+      <button id="resampleBtn">↻ Re-muestrear</button>
+      <label class="checkbox-label">
+        <input type="checkbox" id="showLines" checked /> Mostrar líneas de mapeo
+      </label>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span class="legend-item"><span class="legend-swatch-line" style="background: #185FA5;"></span>CDF F(x)</span>
+    <span class="legend-item"><span class="legend-swatch-rect" style="background: rgba(83,74,183,0.55);"></span>Histograma de X</span>
+    <span class="legend-item"><span class="legend-swatch-rect" style="background: rgba(59,109,17,0.55);"></span>Histograma de U = F(X)</span>
+  </div>
+
+  <div class="chart-container">
+    <canvas id="mainCanvas" role="img" aria-label="Visualización de la transformación integral: histograma de X no uniforme, curva CDF F, e histograma de F(X) que siempre es uniforme.">Transformación integral de probabilidad.</canvas>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="metric-label">Media de U</div>
+      <div class="metric-value" id="statMean">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Varianza de U</div>
+      <div class="metric-value" id="statVar">—</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Valores esperados</div>
+      <div class="metric-value small">μ = 0.5,  σ² = 1/12 ≈ 0.083</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const canvas = document.getElementById('mainCanvas');
+  const ctx = canvas.getContext('2d');
+  const distSelect = document.getElementById('distSelect');
+  const nSlider = document.getElementById('nSlider');
+  const nOut = document.getElementById('nOut');
+  const resampleBtn = document.getElementById('resampleBtn');
+  const showLines = document.getElementById('showLines');
+  const statMean = document.getElementById('statMean');
+  const statVar = document.getElementById('statVar');
+
+  const COLOR_THEORETICAL = '#185FA5';
+  const COLOR_X = '#534AB7';
+  const COLOR_U = '#3B6D11';
+
+  let samples = [];
+  let uValues = [];
+
+  function isDark() {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  }
+  function axisColor() { return isDark() ? '#a8a8a8' : '#5F5E5A'; }
+  function gridColor() { return isDark() ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'; }
+  function textColor() { return isDark() ? '#e8e8e8' : '#2c2c2a'; }
+  function linesColor() { return isDark() ? 'rgba(216,90,48,0.18)' : 'rgba(216,90,48,0.28)'; }
+
+  function sampleNormal() {
+    const u1 = Math.random(), u2 = Math.random();
+    return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+  }
+  function sampleExp() { return -Math.log(Math.random()); }
+  function sampleGamma(shape) {
+    if (shape < 1) {
+      const u = Math.random();
+      return sampleGamma(shape + 1) * Math.pow(u, 1/shape);
+    }
+    const d = shape - 1/3;
+    const c = 1 / Math.sqrt(9 * d);
+    while (true) {
+      let x, v;
+      do {
+        x = sampleNormal();
+        v = 1 + c * x;
+      } while (v <= 0);
+      v = v * v * v;
+      const u = Math.random();
+      if (u < 1 - 0.0331 * x * x * x * x) return d * v;
+      if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
+    }
+  }
+  function sampleBeta() {
+    const g1 = sampleGamma(2);
+    const g2 = sampleGamma(5);
+    return g1 / (g1 + g2);
+  }
+  function sampleBimodal() {
+    return Math.random() < 0.5 ? sampleNormal() * 0.6 - 2 : sampleNormal() * 0.6 + 2;
+  }
+
+  function normalCDF(x) {
+    const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+    const sign = x < 0 ? -1 : 1;
+    const az = Math.abs(x) / Math.sqrt(2);
+    const t = 1.0 / (1.0 + p * az);
+    const y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t * Math.exp(-az*az);
+    return 0.5 * (1.0 + sign * y);
+  }
+  function expCDF(x) { return x < 0 ? 0 : 1 - Math.exp(-x); }
+  function betaCDF(x) {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    const steps = 500;
+    let sum = 0;
+    for (let i = 0; i < steps; i++) {
+      const t = (i + 0.5) / steps * x;
+      sum += 30 * t * Math.pow(1 - t, 4);
+    }
+    return sum * x / steps;
+  }
+  function bimodalCDF(x) { return 0.5 * normalCDF((x + 2) / 0.6) + 0.5 * normalCDF((x - 2) / 0.6); }
+
+  function getConfig() {
+    const d = distSelect.value;
+    if (d === 'normal') return { sampler: sampleNormal, cdf: normalCDF, range: [-3.5, 3.5] };
+    if (d === 'exp') return { sampler: sampleExp, cdf: expCDF, range: [0, 6] };
+    if (d === 'beta') return { sampler: sampleBeta, cdf: betaCDF, range: [0, 1] };
+    if (d === 'bimodal') return { sampler: sampleBimodal, cdf: bimodalCDF, range: [-5, 5] };
+  }
+
+  function resample() {
+    const n = parseInt(nSlider.value);
+    const cfg = getConfig();
+    samples = new Array(n);
+    uValues = new Array(n);
+    for (let i = 0; i < n; i++) {
+      samples[i] = cfg.sampler();
+      uValues[i] = cfg.cdf(samples[i]);
+    }
+    updateStats();
+    draw();
+  }
+
+  function updateStats() {
+    if (uValues.length === 0) return;
+    const n = uValues.length;
+    let sum = 0;
+    for (const u of uValues) sum += u;
+    const mean = sum / n;
+    let sumSq = 0;
+    for (const u of uValues) sumSq += (u - mean) * (u - mean);
+    const variance = sumSq / n;
+    statMean.textContent = mean.toFixed(4);
+    statVar.textContent = variance.toFixed(4);
+  }
+
+  function histogram(data, nbins, range) {
+    const [lo, hi] = range;
+    const bins = new Array(nbins).fill(0);
+    for (const x of data) {
+      if (x >= lo && x < hi) {
+        const idx = Math.min(nbins - 1, Math.floor((x - lo) / (hi - lo) * nbins));
+        bins[idx]++;
+      }
+    }
+    return bins;
+  }
+
+  function draw() {
+    const cfg = getConfig();
+    const dpr = window.devicePixelRatio || 1;
+    const W = canvas.clientWidth;
+    const H = canvas.clientHeight;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    const ml = 75, mr = 25, mt = 25, mb = 75;
+    const histW = 90, histH = 90;
+    const mainX0 = ml + histW;
+    const mainX1 = W - mr;
+    const mainY0 = mt;
+    const mainY1 = H - mb - histH;
+    const mainPlotW = mainX1 - mainX0;
+    const mainPlotH = mainY1 - mainY0;
+    const [xmin, xmax] = cfg.range;
+
+    const x2cx = x => mainX0 + (x - xmin) / (xmax - xmin) * mainPlotW;
+    const u2cy = u => mainY1 - u * mainPlotH;
+
+    ctx.strokeStyle = gridColor();
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= 10; i++) {
+      const y = u2cy(i / 10);
+      ctx.beginPath();
+      ctx.moveTo(mainX0, y);
+      ctx.lineTo(mainX1, y);
+      ctx.stroke();
+    }
+
+    if (showLines.checked) {
+      const showN = Math.min(40, samples.length);
+      const subset = [];
+      for (let i = 0; i < showN; i++) {
+        subset.push(samples[Math.floor(i * samples.length / showN)]);
+      }
+      ctx.strokeStyle = linesColor();
+      ctx.lineWidth = 0.7;
+      for (const x of subset) {
+        if (x < xmin || x > xmax) continue;
+        const u = cfg.cdf(x);
+        const cx = x2cx(x);
+        const cy = u2cy(u);
+        ctx.beginPath();
+        ctx.moveTo(cx, mainY1);
+        ctx.lineTo(cx, cy);
+        ctx.lineTo(mainX0, cy);
+        ctx.stroke();
+      }
+    }
+
+    ctx.strokeStyle = COLOR_THEORETICAL;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    for (let i = 0; i <= 300; i++) {
+      const x = xmin + (xmax - xmin) * i / 300;
+      const u = cfg.cdf(x);
+      const cx = x2cx(x);
+      const cy = u2cy(u);
+      if (i === 0) ctx.moveTo(cx, cy);
+      else ctx.lineTo(cx, cy);
+    }
+    ctx.stroke();
+
+    const nbins = 30;
+    const xBins = histogram(samples, nbins, [xmin, xmax]);
+    const maxXBin = Math.max(...xBins, 1);
+    ctx.fillStyle = isDark() ? 'rgba(127,119,221,0.7)' : 'rgba(83,74,183,0.55)';
+    for (let i = 0; i < nbins; i++) {
+      const cx0 = x2cx(xmin + (xmax - xmin) * i / nbins);
+      const cx1 = x2cx(xmin + (xmax - xmin) * (i + 1) / nbins);
+      const h = xBins[i] / maxXBin * (histH - 10);
+      ctx.fillRect(cx0, mainY1 + 12, Math.max(cx1 - cx0 - 1, 0), h);
+    }
+
+    const uBins = histogram(uValues, nbins, [0, 1]);
+    const maxUBin = Math.max(...uBins, 1);
+    ctx.fillStyle = isDark() ? 'rgba(135,200,80,0.7)' : 'rgba(59,109,17,0.55)';
+    for (let i = 0; i < nbins; i++) {
+      const cy0 = u2cy((i + 1) / nbins);
+      const cy1 = u2cy(i / nbins);
+      const w = uBins[i] / maxUBin * (histW - 12);
+      ctx.fillRect(mainX0 - 12 - w, cy0, w, Math.max(cy1 - cy0 - 1, 0));
+    }
+
+    ctx.strokeStyle = axisColor();
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(mainX0, mainY0);
+    ctx.lineTo(mainX0, mainY1);
+    ctx.lineTo(mainX1, mainY1);
+    ctx.stroke();
+
+    ctx.fillStyle = textColor();
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i <= 5; i++) {
+      ctx.fillText((i / 5).toFixed(1), mainX0 - 14 - (histW - 12), u2cy(i / 5));
+    }
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for (let i = 0; i <= 5; i++) {
+      const xVal = xmin + (xmax - xmin) * i / 5;
+      const cx = x2cx(xVal);
+      ctx.fillText(xVal.toFixed(1), cx, mainY1 + histH + 18);
+    }
+
+    ctx.fillStyle = textColor();
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('x', (mainX0 + mainX1) / 2, H - 12);
+
+    ctx.save();
+    ctx.translate(18, (mainY0 + mainY1) / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textBaseline = 'top';
+    ctx.fillText('F(x) = altura de la CDF', 0, 0);
+    ctx.restore();
+
+    ctx.font = '500 11px sans-serif';
+    ctx.fillStyle = isDark() ? '#7F77DD' : COLOR_X;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('Histograma de X ~ F', mainX0 + 8, H - mb + 35);
+    ctx.fillStyle = textColor();
+    ctx.font = '10px sans-serif';
+    ctx.fillText('(no uniforme)', mainX0 + 8, H - mb + 50);
+
+    ctx.save();
+    ctx.translate(ml + 4, mainY0 + 8);
+    ctx.rotate(Math.PI / 2);
+    ctx.font = '500 11px sans-serif';
+    ctx.fillStyle = isDark() ? '#87C850' : COLOR_U;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('Histograma de F(X)', 0, 0);
+    ctx.fillStyle = textColor();
+    ctx.font = '10px sans-serif';
+    ctx.fillText('(≈ uniforme)', 0, 14);
+    ctx.restore();
+
+    ctx.fillStyle = COLOR_THEORETICAL;
+    ctx.font = '500 11px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    const labelXFn = mainX1 - 8;
+    const xLabelVal = xmin + (xmax - xmin) * 0.92;
+    const labelYFn = u2cy(cfg.cdf(xLabelVal)) - 6;
+    ctx.fillText('F(x)', labelXFn, labelYFn);
+  }
+
+  nSlider.addEventListener('input', () => {
+    nOut.textContent = nSlider.value;
+  });
+  nSlider.addEventListener('change', resample);
+  distSelect.addEventListener('change', resample);
+  resampleBtn.addEventListener('click', resample);
+  showLines.addEventListener('change', draw);
+  window.addEventListener('resize', draw);
+  
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+  }
+
+  resample();
+})();
+</script>
+</body>
+</html>
