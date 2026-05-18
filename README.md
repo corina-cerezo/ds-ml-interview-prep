@@ -47,6 +47,9 @@ ds-ml-interview-prep/
 │   ├── 21_time_series_analysis.ipynb
 │   └── 22_metrics_and_measurement.ipynb
 │
+├── 04_deep_dives/
+│   └── kolmogorov_smirnov/
+│
 └── README.md
 ```
 
@@ -94,6 +97,10 @@ Applying statistics to real business problems. The most differentiating category
 | 21 | Time series analysis | Stationarity, ARIMA, seasonality, forecasting |
 | 22 | Metrics & measurement | Defining KPIs, metric trade-offs, guardrail metrics |
 
+### Bonus: Deep Dives
+
+Extended notes on topics I found interesting enough to explore beyond the original plan. They do not follow the 8-section structure because here the goal is exploration, not interview preparation. Some of these notes may be in Spanish first, with an English version added later.
+
 ---
 
 ## Notebook Structure
@@ -129,6 +136,12 @@ Every notebook follows a consistent structure:
 | 02 | Expectation & Variance | 🔜 Coming soon |
 | 03 | Key distributions | 🔜 Coming soon |
 | ... | ... | ... |
+
+### Deep Dives
+
+| Topic | Language | Status |
+|-------|----------|--------|
+| [Kolmogorov-Smirnov test](04_deep_dives/kolmogorov_smirnov/kolmogorov_smirnov_es.md) | 🇲🇽 Spanish | ✅ Complete |
 
 ---
 
